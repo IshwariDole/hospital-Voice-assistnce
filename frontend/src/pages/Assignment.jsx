@@ -6,12 +6,53 @@ function Assignment() {
   const [loading, setLoading] = useState(false);
   const chatEndRef = useRef(null);
   const [showForm, setShowForm] = useState(false);
+const [isListening, setIsListening] = useState(false);
+const [formData, setFormData] = useState({
+  name: "",
+  department: "",
+  time: ""
+});
 
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
+const recognition = new SpeechRecognition();
+recognition.continuous = false;
+recognition.lang = "en-US";
   // auto scroll
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat, loading]);
 
+
+// 🎤 Speech → Text
+const startListening = () => {
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    alert("Speech Recognition not supported in this browser");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-IN";
+  recognition.start();
+
+  recognition.onstart = () => {
+    console.log("🎤 Listening...");
+  };
+
+  recognition.onresult = (event) => {
+    const speechText = event.results[0][0].transcript;
+    setMessage(speechText);
+    sendVoiceMessage(speechText);
+  };
+
+  recognition.onerror = () => {
+    alert("Voice recognition error");
+  };
+};
   const sendMessage = async () => {
     if (!message.trim()) return;
 
@@ -28,7 +69,27 @@ function Assignment() {
       });
 
       const data = await res.json();
-      setChat([...newChat, { role: "bot", text: data.reply }]);
+     const aiReply = data.reply;
+
+setChat([...newChat, { role: "bot", text: aiReply }]);
+
+// 🧠 AUTO OPEN APPOINTMENT FORM
+const bookingTriggerWords = [
+  "your name",
+  "preferred time",
+  "department",
+  "book appointment",
+  "appointment details"
+];
+
+if (bookingTriggerWords.some(word => aiReply.toLowerCase().includes(word))) {
+  setShowForm(true);
+}
+
+// ⭐ detect booking step
+if (data.reply.toLowerCase().includes("tell me")) {
+  setShowForm(true);
+}
     } catch (err) {setChat([...newChat, { role: "bot", text: data.reply }]);
 
 // ⭐ detect booking intent
@@ -40,11 +101,93 @@ if (data.reply.toLowerCase().includes("appointment")) {
 
     setLoading(false);
   };
+const sendVoiceMessage = async (speechText) => {
+  const newChat = [...chat, { role: "user", text: speechText }];
+  setChat(newChat);
+  setLoading(true);
+
+  try {
+    const res = await fetch("http://localhost:5000/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: speechText })
+    });
+
+    const data = await res.json();
+
+    speak(data.reply); // 🔊 AI will talk
+   const aiReply = data.reply;
+
+setChat([...newChat, { role: "bot", text: aiReply }]);
+
+// 🎤 Auto open form after voice booking intent
+const bookingTriggerWords = [
+  "your name",
+  "preferred time",
+  "department",
+  "book appointment",
+  "appointment details"
+];
+
+if (bookingTriggerWords.some(word => aiReply.toLowerCase().includes(word))) {
+  setShowForm(true);
+}
+
+speak(aiReply);
+
+  } catch {
+    setChat([...newChat, { role: "bot", text: "Server error 😢" }]);
+  }
+
+  setLoading(false);
+};
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") sendMessage();
   };
 
+
+const handleChange = (e) => {
+  setFormData({
+    ...formData,
+    [e.target.name]: e.target.value
+  });
+};
+const bookAppointment = async () => {
+  try {
+    const res = await fetch("http://localhost:5000/book-appointment", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(formData)
+    });
+
+    const data = await res.json();
+
+    setChat(prev => [
+      ...prev,
+      { role: "bot", text: "✅ Appointment booked successfully!" }
+    ]);
+
+    speak("Your appointment has been booked successfully");
+
+    setShowForm(false);
+    setFormData({ name: "", department: "", time: "" });
+
+  } catch (err) {
+    alert("Booking failed");
+  }
+};
+
+// 🔊 Text → Speech
+const speak = (text) => {
+  const speech = new SpeechSynthesisUtterance(text);
+  speech.lang = "en-IN";
+  speech.rate = 1;
+  speech.pitch = 1;
+  window.speechSynthesis.speak(speech);
+};
   return (
     <div style={styles.page}>
       <div style={styles.card}>
@@ -80,20 +223,58 @@ if (data.reply.toLowerCase().includes("appointment")) {
           {loading && <div>Typing...</div>}
           <div ref={chatEndRef} />
         </div>
+        {showForm && (
+  <div style={{
+    border: "1px solid #ddd",
+    padding: "15px",
+    borderRadius: "10px",
+    marginTop: "10px"
+  }}>
+    <h3>📅 Book Appointment</h3>
 
-        <div style={styles.inputArea}>
-          <input
-            style={styles.input}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Describe your problem..."
-          />
-          <button style={styles.button} onClick={sendMessage}>
-            Send
-          </button>
-        </div>
-      </div>
+    <input
+      name="name"
+      placeholder="Your Name"
+      value={formData.name}
+      onChange={handleChange}
+    />
+
+    <input
+      name="department"
+      placeholder="Department"
+      value={formData.department}
+      onChange={handleChange}
+    />
+
+    <input
+      name="time"
+      placeholder="Preferred Time"
+      value={formData.time}
+      onChange={handleChange}
+    />
+
+    <button onClick={bookAppointment}>Confirm Booking</button>
+  </div>
+)}
+
+ <div style={styles.inputArea}>
+  <input
+    style={styles.input}
+    value={message}
+    onChange={(e) => setMessage(e.target.value)}
+    placeholder="Describe your problem..."
+    onKeyDown={(e)=> e.key==="Enter" && sendMessage()}
+  />
+
+  <button style={styles.button} onClick={sendMessage}>
+    Send
+  </button>
+
+  <button style={{...styles.button, background:"#28a745"}} onClick={startListening}>
+    🎤 Speak
+  </button>
+</div>
+</div>
       {showForm && <AppointmentForm onClose={()=>setShowForm(false)} />}
     </div>
   );

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import PatientForm from "./pages/PatientForm";
 import Assignment from "./pages/Assignment";
 import BookAppointment from "./pages/BookAppointment";
 

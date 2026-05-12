@@ -1,74 +1,82 @@
 import { useState } from "react";
+import axios from "axios";
 
-function AppointmentForm({ onClose }) {
+function AppointmentForm({ closeForm }) {
   const [form, setForm] = useState({
     name: "",
     age: "",
-    symptoms: "",
+    gender: "",
     department: "",
-    date: ""
+    phone: ""
   });
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    await fetch("http://localhost:5000/book", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(form)
-    });
+    try {
+      await axios.post("http://localhost:5000/api/patients", form);
 
-    alert("Appointment Booked ✅");
-    onClose();
+      alert("✅ Appointment Booked!");
+      closeForm(); // close popup
+    } catch (err) {
+      console.error(err);
+      alert("❌ Error booking appointment");
+    }
   };
 
   return (
-    <div style={styles.overlay}>
-      <div style={styles.form}>
-        <h2>📅 Book Appointment</h2>
+    <div className="form-popup">
+      <div className="form-card">
+        <h2>Book Appointment</h2>
 
-        <input placeholder="Name"
-          onChange={e=>setForm({...form,name:e.target.value})} />
+        <form onSubmit={handleSubmit}>
+          <input
+            name="name"
+            placeholder="Full Name"
+            onChange={handleChange}
+            required
+          />
 
-        <input placeholder="Age"
-          onChange={e=>setForm({...form,age:e.target.value})} />
+          <input
+            name="age"
+            placeholder="Age"
+            onChange={handleChange}
+            required
+          />
 
-        <input placeholder="Symptoms"
-          onChange={e=>setForm({...form,symptoms:e.target.value})} />
+          <select name="gender" onChange={handleChange} required>
+            <option value="">Select Gender</option>
+            <option>Male</option>
+            <option>Female</option>
+          </select>
 
-        <input placeholder="Department"
-          onChange={e=>setForm({...form,department:e.target.value})} />
+          <select name="department" onChange={handleChange} required>
+            <option value="">Select Department</option>
+            <option>General Physician</option>
+            <option>Cardiologist</option>
+            <option>Dermatologist</option>
+            <option>Orthopedic</option>
+            <option>Pediatrician</option>
+            <option>Ophthalmologist</option>
+          </select>
 
-        <input type="date"
-          onChange={e=>setForm({...form,date:e.target.value})} />
+          <input
+            name="phone"
+            placeholder="Phone Number"
+            onChange={handleChange}
+            required
+          />
 
-        <button onClick={handleSubmit}>Confirm Booking</button>
-        <button onClick={onClose}>Cancel</button>
+          <button type="submit">Submit</button>
+          <button type="button" onClick={closeForm}>Cancel</button>
+        </form>
       </div>
     </div>
   );
 }
-
-const styles = {
-  overlay:{
-    position:"fixed",
-    top:0,left:0,right:0,bottom:0,
-    background:"rgba(0,0,0,0.5)",
-    display:"flex",
-    justifyContent:"center",
-    alignItems:"center"
-  },
-  form:{
-    background:"white",
-    padding:"20px",
-    borderRadius:"10px",
-    display:"flex",
-    flexDirection:"column",
-    gap:"10px",
-    width:"300px"
-  }
-};
 
 export default AppointmentForm;

@@ -3,12 +3,16 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { appointments } from "./data/appointments.js";
 import { doctors, emergencyKeywords } from "./data/hospitalData.js";
-
+import connectDB from "./config/db.js";
+import Appointment from "./models/Appointment.js";
 dotenv.config();
 const app = express();
-
+connectDB();
 app.use(cors());
 app.use(express.json());
+import patientRoutes from "./routes/patients.js";
+
+app.use("/api/patients", patientRoutes);
 
 app.post("/chat", async (req, res) => {
   try {
@@ -76,28 +80,28 @@ Reply in short helpful sentences.
 });
 
 
-// 📅 Final appointment booking API
-app.post("/book-appointment", (req, res) => {
-  const { name, department, time } = req.body;
+app.post("/book-appointment", async (req, res) => {
+  try {
+    const { name, department, time } = req.body;
 
-  if (!name || !department || !time) {
-    return res.status(400).json({ message: "All fields required" });
+    if (!name || !department || !time) {
+      return res.status(400).json({ message: "All fields required" });
+    }
+
+    const newAppointment = await Appointment.create({
+      name,
+      department,
+      time
+    });
+
+    res.json({
+      message: "Appointment booked successfully 🎉",
+      appointment: newAppointment
+    });
+
+  } catch (error) {
+    res.status(500).json({ message: "DB error" });
   }
-
-  const newAppointment = {
-    id: Date.now(),
-    name,
-    department,
-    time,
-    date: new Date().toLocaleString()
-  };
-
-  appointments.push(newAppointment);
-
-  res.json({
-    message: "Appointment booked successfully",
-    appointment: newAppointment
-  });
 });
 
 app.listen(5000, () => console.log("Server running on port 5000"));
