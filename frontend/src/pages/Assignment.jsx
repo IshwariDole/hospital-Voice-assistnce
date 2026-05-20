@@ -1,58 +1,42 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import AppointmentForm from "../components/AppointmentForm";
-function Assignment() {
+import PatientForm from "./PatientForm";
+import { Moon, Sun, Stethoscope } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+
+export default function Assignment() {
+  const nav = useNavigate();
+  const [dark, setDark] = useState(false);
+  const [chat, setChat] = useState([
+    {
+      role: "bot",
+      text: "Hi 👋 I am your AI Hospital Assistant. How can I help you?",
+    },
+  ]);
   const [message, setMessage] = useState("");
-  const [chat, setChat] = useState([]);
   const [loading, setLoading] = useState(false);
-  const chatEndRef = useRef(null);
   const [showForm, setShowForm] = useState(false);
-const [isListening, setIsListening] = useState(false);
-const [formData, setFormData] = useState({
-  name: "",
-  department: "",
-  time: ""
-});
+  const chatEndRef = useRef(null);
 
-const SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
-
-const recognition = new SpeechRecognition();
-recognition.continuous = false;
-recognition.lang = "en-US";
-  // auto scroll
+  // auto scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat, loading]);
+  }, [chat]);
 
+  const startListening = () => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-IN";
+    recognition.start();
 
-// 🎤 Speech → Text
-const startListening = () => {
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    alert("Speech Recognition not supported in this browser");
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = "en-IN";
-  recognition.start();
-
-  recognition.onstart = () => {
-    console.log("🎤 Listening...");
+    recognition.onresult = (event) => {
+      const speechText = event.results[0][0].transcript;
+      setMessage(speechText);
+    };
   };
 
-  recognition.onresult = (event) => {
-    const speechText = event.results[0][0].transcript;
-    setMessage(speechText);
-    sendVoiceMessage(speechText);
-  };
-
-  recognition.onerror = () => {
-    alert("Voice recognition error");
-  };
-};
   const sendMessage = async () => {
     if (!message.trim()) return;
 
@@ -65,277 +49,112 @@ const startListening = () => {
       const res = await fetch("http://localhost:5000/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message })
+        body: JSON.stringify({ message }),
       });
 
       const data = await res.json();
-     const aiReply = data.reply;
+      const aiReply = data.reply;
 
-setChat([...newChat, { role: "bot", text: aiReply }]);
+      setChat([...newChat, { role: "bot", text: aiReply }]);
 
-// 🧠 AUTO OPEN APPOINTMENT FORM
-const bookingTriggerWords = [
-  "your name",
-  "preferred time",
-  "department",
-  "book appointment",
-  "appointment details"
-];
-
-if (bookingTriggerWords.some(word => aiReply.toLowerCase().includes(word))) {
-  setShowForm(true);
-}
-
-// ⭐ detect booking step
-if (data.reply.toLowerCase().includes("tell me")) {
-  setShowForm(true);
-}
-    } catch (err) {setChat([...newChat, { role: "bot", text: data.reply }]);
-
-// ⭐ detect booking intent
-if (data.reply.toLowerCase().includes("appointment")) {
-  setTimeout(()=>setShowForm(true),1000);
-}
+      // auto open booking form
+      if (aiReply.toLowerCase().includes("appointment")) {
+        setShowForm(true);
+      }
+    } catch {
       setChat([...newChat, { role: "bot", text: "Server error 😢" }]);
     }
 
     setLoading(false);
   };
-const sendVoiceMessage = async (speechText) => {
-  const newChat = [...chat, { role: "user", text: speechText }];
-  setChat(newChat);
-  setLoading(true);
 
-  try {
-    const res = await fetch("http://localhost:5000/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: speechText })
-    });
-
-    const data = await res.json();
-
-    speak(data.reply); // 🔊 AI will talk
-   const aiReply = data.reply;
-
-setChat([...newChat, { role: "bot", text: aiReply }]);
-
-// 🎤 Auto open form after voice booking intent
-const bookingTriggerWords = [
-  "your name",
-  "preferred time",
-  "department",
-  "book appointment",
-  "appointment details"
-];
-
-if (bookingTriggerWords.some(word => aiReply.toLowerCase().includes(word))) {
-  setShowForm(true);
-}
-
-speak(aiReply);
-
-  } catch {
-    setChat([...newChat, { role: "bot", text: "Server error 😢" }]);
-  }
-
-  setLoading(false);
-};
-
-  const handleKeyPress = (e) => {
-    if (e.key === "Enter") sendMessage();
-  };
-
-
-const handleChange = (e) => {
-  setFormData({
-    ...formData,
-    [e.target.name]: e.target.value
-  });
-};
-const bookAppointment = async () => {
-  try {
-    const res = await fetch("http://localhost:5000/book-appointment", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(formData)
-    });
-
-    const data = await res.json();
-
-    setChat(prev => [
-      ...prev,
-      { role: "bot", text: "✅ Appointment booked successfully!" }
-    ]);
-
-    speak("Your appointment has been booked successfully");
-
-    setShowForm(false);
-    setFormData({ name: "", department: "", time: "" });
-
-  } catch (err) {
-    alert("Booking failed");
-  }
-};
-
-// 🔊 Text → Speech
-const speak = (text) => {
-  const speech = new SpeechSynthesisUtterance(text);
-  speech.lang = "en-IN";
-  speech.rate = 1;
-  speech.pitch = 1;
-  window.speechSynthesis.speak(speech);
-};
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>🏥 AI Hospital Assistant</h2>
-               <div style={styles.quickBtns}>
-  <button onClick={() => { setMessage("I want to book appointment"); setTimeout(sendMessage,200); }}>
-    📅 Book Appointment
-  </button>
+    <div className="h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex">
+      {/* SIDEBAR */}
+      <div className="w-64 bg-white shadow-xl p-6 flex flex-col justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-blue-600 mb-10">
+            🏥 AI Hospital
+          </h1>
 
-  <button onClick={() => { setMessage("Show hospital departments"); setTimeout(sendMessage,200); }}>
-    🏥 Departments
-  </button>
+          <button onClick={() => setShowForm(true)} className="sidebar-btn">
+            📅 Book Appointment
+          </button>
 
-  <button onClick={() => { setMessage("I have emergency"); setTimeout(sendMessage,200); }}>
-    🚨 Emergency
-  </button>
-</div>
-        <div style={styles.chatBox}>
-          {chat.map((msg, i) => (
-            <div
-              key={i}
-              style={{
-                ...styles.message,
-                alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
-                background: msg.role === "user" ? "#007bff" : "#eee",
-                color: msg.role === "user" ? "white" : "black"
-              }}
-            >
-              {msg.text}
-            </div>
-          ))}
-
-          {loading && <div>Typing...</div>}
-          <div ref={chatEndRef} />
+          <button onClick={() => nav("/doctors")} className="sidebar-btn">
+            <Stethoscope size={18} /> Doctors
+          </button>
         </div>
-        {showForm && (
-  <div style={{
-    border: "1px solid #ddd",
-    padding: "15px",
-    borderRadius: "10px",
-    marginTop: "10px"
-  }}>
-    <h3>📅 Book Appointment</h3>
 
-    <input
-      name="name"
-      placeholder="Your Name"
-      value={formData.name}
-      onChange={handleChange}
-    />
+        <button onClick={() => setDark(!dark)} className="sidebar-btn">
+          {dark ? <Sun /> : <Moon />} Toggle Theme
+        </button>
+      </div>
 
-    <input
-      name="department"
-      placeholder="Department"
-      value={formData.department}
-      onChange={handleChange}
-    />
+      {/* CHAT SECTION */}
+      <div className="flex-1 flex flex-col p-6">
+        <div className="glass-card flex-1 flex flex-col">
+          <h2 className="text-xl font-semibold mb-4">🤖 Chat Assistant</h2>
 
-    <input
-      name="time"
-      placeholder="Preferred Time"
-      value={formData.time}
-      onChange={handleChange}
-    />
+          {/* messages */}
+          <div className="flex-1 overflow-y-auto space-y-3">
+            {chat.map((msg, i) => (
+              <div
+                key={i}
+                className={`max-w-md px-4 py-2 rounded-xl ${
+                  msg.role === "user"
+                    ? "bg-blue-600 text-white ml-auto"
+                    : "bg-gray-200"
+                }`}
+              >
+                {msg.text}
+              </div>
+            ))}
 
-    <button onClick={bookAppointment}>Confirm Booking</button>
-  </div>
-)}
+            {loading && <p className="text-gray-400">Typing...</p>}
+            <div ref={chatEndRef} />
+          </div>
 
- <div style={styles.inputArea}>
-  <input
-    style={styles.input}
-    value={message}
-    onChange={(e) => setMessage(e.target.value)}
-    placeholder="Describe your problem..."
-    onKeyDown={(e)=> e.key==="Enter" && sendMessage()}
-  />
+          {/* input */}
+          <div className="flex gap-3 mt-4">
+            <input
+              className="input"
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Describe your problem..."
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            />
 
-  <button style={styles.button} onClick={sendMessage}>
-    Send
-  </button>
+            <button onClick={sendMessage} className="primary-btn">
+              Send
+            </button>
 
-  <button style={{...styles.button, background:"#28a745"}} onClick={startListening}>
-    🎤 Speak
-  </button>
-</div>
-</div>
-      {showForm && <AppointmentForm onClose={()=>setShowForm(false)} />}
+            <button
+              onClick={startListening}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 rounded-xl"
+            >
+              🎤
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT PANEL */}
+      <div className="w-[420px] p-6">
+        <div className="glass-card h-full overflow-y-auto">
+          <h2 className="text-xl font-semibold mb-4">
+            📝 Patient Registration
+          </h2>
+          <PatientForm />
+
+          {showForm && (
+            <>
+              <hr className="my-6" />
+              <AppointmentForm onClose={() => setShowForm(false)} />
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  page: {
-    background: "#eef2f7",
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    fontFamily: "Arial"
-  },
-  card: {
-    width: "420px",
-    height: "600px",
-    background: "white",
-    borderRadius: "20px",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
-    display: "flex",
-    flexDirection: "column",
-    padding: "20px"
-  },
-  title: { textAlign: "center", marginBottom: "10px" },
-  chatBox: {
-    flex: 1,
-    overflowY: "auto",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    padding: "10px",
-    border: "1px solid #eee",
-    borderRadius: "10px"
-  },
-  message: {
-    padding: "10px 14px",
-    borderRadius: "18px",
-    maxWidth: "75%",
-    fontSize: "14px"
-  },
-  inputArea: { display: "flex", gap: "10px", marginTop: "10px" },
-  input: {
-    flex: 1,
-    padding: "12px",
-    borderRadius: "10px",
-    border: "1px solid #ccc"
-  },
-  button: {
-    padding: "12px 18px",
-    background: "#007bff",
-    color: "white",
-    border: "none",
-    borderRadius: "10px",
-    cursor: "pointer"
-  },
-  quickBtns: {
-  display: "flex",
-  gap: "8px",
-  marginBottom: "10px"
-},
-};
-
-export default Assignment;

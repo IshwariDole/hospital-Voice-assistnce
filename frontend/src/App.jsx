@@ -1,23 +1,20 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Navbar from "./components/Navbar";
-import PatientForm from "./pages/PatientForm";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Assignment from "./pages/Assignment";
-import BookAppointment from "./pages/BookAppointment";
+import Login from "./pages/Login";
+import Doctors from "./pages/Doctors";
+import ChatAssistant from "./ChatAssistant";
+import Assistant from "./pages/Assistant";
 
-
-
-function App() {
+export default function App() {
   return (
-    <BrowserRouter>
-      <Navbar />
-
+    <Router>
       <Routes>
-        <Route path="/" element={<Assignment />} />
-        <Route path="/book" element={<BookAppointment />} />
-
+        <Route path="/" element={<Login />} />
+        <Route path="/dashboard" element={<Assignment />} />
+        <Route path="/doctors" element={<Doctors />} />
+        <Route path="/chat" element={<ChatAssistant />} />
+        <Route path="/assistant" element={<Assistant />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
-
-export default App;
