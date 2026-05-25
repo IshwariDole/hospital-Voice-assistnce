@@ -1,4 +1,6 @@
 @import "tailwindcss";
+@import "tailwindcss/preflight";
+@tailwind utilities;
 * {
   margin: 0;
   padding: 0;
@@ -41,7 +43,7 @@ body {
   border-radius: 15px;
   height: 400px;
   overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
 .message {
@@ -85,7 +87,7 @@ button {
   background: white;
   padding: 30px;
   border-radius: 15px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
 .form-container input {
@@ -99,30 +101,29 @@ button {
   padding: 30px;
   border-radius: 15px;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
 }
 
-
-.sidebar-btn{
+.sidebar-btn {
   @apply bg-blue-50 hover:bg-blue-100 text-blue-700 
   p-3 rounded-xl mb-4 text-left transition font-medium;
 }
 
-.glass-card{
+.glass-card {
   @apply bg-white/70 backdrop-blur-lg shadow-xl rounded-2xl p-6;
 }
 
-.input{
+.input {
   @apply flex-1 border rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400;
 }
 
-.primary-btn{
+.primary-btn {
   @apply bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-medium;
 }
 
-.dark{
-  background:#0f172a;
-  color:white;
+.dark {
+  background: #0f172a;
+  color: white;
 }
 
 /* RESET OLD STYLES */

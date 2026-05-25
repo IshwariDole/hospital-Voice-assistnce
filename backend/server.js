@@ -18,64 +18,133 @@ app.post("/chat", async (req, res) => {
   try {
     const userMessage = req.body.message.toLowerCase();
 
-    // 🚨 Emergency detection
-    if (emergencyKeywords.some(word => userMessage.includes(word))) {
+    // 🚨 Emergency Detection
+    if (
+      userMessage.includes("emergency") ||
+      userMessage.includes("chest pain") ||
+      userMessage.includes("accident") ||
+      userMessage.includes("heart attack")
+    ) {
       return res.json({
         reply:
-          "🚨 This sounds like an emergency. Please call 108 immediately or visit the nearest hospital!"
+          "🚨 This sounds like an emergency. Please call 108 immediately or visit the nearest hospital."
       });
     }
 
-    // 👨‍⚕️ Doctor list
-    if (userMessage.includes("doctor") || userMessage.includes("department")) {
-      let docList = doctors
-        .map(doc => `${doc.name} - ${doc.department} (${doc.time})`)
-        .join("\n");
+    // 👨‍⚕️ Department Detection
+    const departments = [
+      "cardiologist",
+      "dermatologist",
+      "orthopedic",
+      "pediatrician",
+      "neurologist",
+      "general physician"
+    ];
 
+    // ⏰ Time Detection
+    const timeRegex = /\b([1-9]|1[0-2])\s?(am|pm)\b/i;
+
+    // 👤 Name, Department, Time Extraction
+    const parts = req.body.message.split(",");
+
+    let patientName = "";
+    let department = "";
+    let preferredTime = "";
+
+    if (parts.length >= 1) {
+      patientName = parts[0].trim();
+    }
+
+    if (parts.length >= 2) {
+      department = parts[1].trim();
+    }
+
+    if (parts.length >= 3) {
+      preferredTime = parts[2].trim();
+    }
+
+    // 📅 Booking Intent
+    // 📅 Appointment booking
+if (
+  userMessage.includes("appointment") ||
+  userMessage.includes("book")
+) {
+  return res.json({
+    reply:
+      "Sure 😊 Please provide:\n\n👤 Patient Name\n🏥 Department\n⏰ Preferred Time"
+  });
+}
+
+// 👨‍⚕️ Detect direct booking details
+if (
+  userMessage.includes(",")
+) {
+  return res.json({
+    reply:
+      "✅ Details received.\nPlease fill the appointment form on the right side to confirm booking."
+  });
+}
+
+    // ✅ If all details provided
+    const validDepartment = departments.some((d) =>
+      department.toLowerCase().includes(d)
+    );
+
+    const validTime = timeRegex.test(preferredTime);
+
+    if (patientName && validDepartment && validTime) {
       return res.json({
-        reply: "Here are our available doctors:\n\n" + docList
+        reply: `Thanks ${patientName} 😊\nWhat symptoms are you experiencing?\nPlease also share your preferred date and contact number for booking.`
       });
     }
 
-    // 📅 Appointment booking start
-    if (userMessage.includes("appointment") || userMessage.includes("book")) {
-      return res.json({
-        reply:
-          "Sure 😊 Please tell me:\n• Your name\n• Department\n• Preferred time"
-      });
-    }
-
-    // 🤖 AI fallback (OpenRouter)
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "openrouter/auto",
-        messages: [
-          {
-            role: "system",
-            content: `
+    // 🤖 AI RESPONSE (fallback)
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "openrouter/auto",
+          messages: [
+            {
+              role: "system",
+              content: `
 You are an AI hospital receptionist.
-Ask symptoms, suggest department, and help book appointments.
-Reply in short helpful sentences.
+
+Rules:
+- Keep replies short.
+- Never assume patient name is doctor name.
+- Ask only necessary questions.
+- Be professional and friendly.
 `
-          },
-          { role: "user", content: userMessage }
-        ]
-      })
-    });
+            },
+            {
+              role: "user",
+              content: req.body.message
+            }
+          ]
+        })
+      }
+    );
 
     const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "No reply";
+
+    const reply =
+      data.choices?.[0]?.message?.content ||
+      "Sorry, I couldn't understand.";
 
     res.json({ reply });
 
   } catch (err) {
     console.log(err);
-    res.status(500).json({ reply: "AI error" });
+
+    res.status(500).json({
+      reply: "Server error 😢"
+    });
   }
 });
 
