@@ -7,8 +7,8 @@ const Assistant = () => {
   const [messages, setMessages] = useState([
     {
       sender: "bot",
-      text: "Hi 👋 I am your AI Hospital Assistant. How can I help you?"
-    }
+      text: "Hi 👋 I am your AI Hospital Assistant. How can I help you?",
+    },
   ]);
 
   const [input, setInput] = useState("");
@@ -25,7 +25,7 @@ const Assistant = () => {
 
     const userMessage = {
       sender: "user",
-      text: input
+      text: input,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -34,7 +34,7 @@ const Assistant = () => {
     setTimeout(() => {
       const botReply = {
         sender: "bot",
-        text: "Thanks 😊 Your appointment request is being processed."
+        text: "Thanks 😊 Your appointment request is being processed.",
       };
 
       setMessages((prev) => [...prev, botReply]);
@@ -67,22 +67,16 @@ const Assistant = () => {
         {/* HEADER */}
         <div
           className={`p-5 flex justify-between items-center shadow-md ${
-            darkMode
-              ? "bg-gray-950 text-white"
-              : "bg-blue-600 text-white"
+            darkMode ? "bg-gray-950 text-white" : "bg-blue-600 text-white"
           }`}
         >
           <div className="flex items-center gap-3">
             <div className="text-3xl">🤖</div>
 
             <div>
-              <h1 className="font-bold text-xl">
-                AI Hospital Assistant
-              </h1>
+              <h1 className="font-bold text-xl">AI Hospital Assistant</h1>
 
-              <p className="text-sm opacity-80">
-                Online Now
-              </p>
+              <p className="text-sm opacity-80">Online Now</p>
             </div>
           </div>
 
@@ -105,9 +99,7 @@ const Assistant = () => {
             <div
               key={index}
               className={`flex mb-4 ${
-                msg.sender === "user"
-                  ? "justify-end"
-                  : "justify-start"
+                msg.sender === "user" ? "justify-end" : "justify-start"
               }`}
             >
               <div
@@ -115,8 +107,8 @@ const Assistant = () => {
                   msg.sender === "user"
                     ? "bg-blue-600 text-white rounded-br-none"
                     : darkMode
-                    ? "bg-gray-700 text-white rounded-bl-none"
-                    : "bg-white text-gray-800 rounded-bl-none"
+                      ? "bg-gray-700 text-white rounded-bl-none"
+                      : "bg-white text-gray-800 rounded-bl-none"
                 }`}
               >
                 {msg.text}
@@ -130,18 +122,14 @@ const Assistant = () => {
         {/* INPUT AREA */}
         <div
           className={`p-4 border-t flex items-center gap-3 ${
-            darkMode
-              ? "bg-gray-800 border-gray-700"
-              : "bg-white"
+            darkMode ? "bg-gray-800 border-gray-700" : "bg-white"
           }`}
         >
           <input
             type="text"
             placeholder="Type your message..."
             className={`flex-1 rounded-full px-5 py-3 outline-none ${
-              darkMode
-                ? "bg-gray-700 text-white"
-                : "border border-gray-300"
+              darkMode ? "bg-gray-700 text-white" : "border border-gray-300"
             }`}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -157,9 +145,7 @@ const Assistant = () => {
           </button>
 
           {/* MIC BUTTON */}
-          <button
-            className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition"
-          >
+          <button className="bg-green-500 hover:bg-green-600 text-white p-4 rounded-full transition">
             <FaMicrophone />
           </button>
         </div>

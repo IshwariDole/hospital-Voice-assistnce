@@ -18,7 +18,7 @@ function PatientForm() {
     e.preventDefault();
 
     try {
-      await axios.post("http://localhost:5000/api/patients", form);
+      await axios.post("https://hospital-voice-assistnce.onrender.com/api/patients", form);
       alert("Patient Registered Successfully ✅");
 
       setForm({

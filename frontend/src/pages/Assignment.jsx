@@ -43,8 +43,7 @@ export default function Assignment() {
   // 🎤 Voice Input
   const startListening = () => {
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      window.SpeechRecognition || window.webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       alert("Speech Recognition not supported");
@@ -57,8 +56,7 @@ export default function Assignment() {
     recognition.start();
 
     recognition.onresult = (event) => {
-      const speechText =
-        event.results[0][0].transcript;
+      const speechText = event.results[0][0].transcript;
 
       setMessage(speechText);
     };
@@ -99,17 +97,16 @@ export default function Assignment() {
 
     try {
       const res = await fetch(
-        "http://localhost:5000/chat",
+        "https://hospital-voice-assistnce.onrender.com/chat",
         {
           method: "POST",
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             message: userMessage,
           }),
-        }
+        },
       );
 
       const data = await res.json();
@@ -125,11 +122,7 @@ export default function Assignment() {
       ]);
 
       // 📅 Auto Open Form
-      if (
-        aiReply
-          .toLowerCase()
-          .includes("appointment")
-      ) {
+      if (aiReply.toLowerCase().includes("appointment")) {
         setShowForm(true);
       }
     } catch (err) {
@@ -156,9 +149,7 @@ export default function Assignment() {
       {/* SIDEBAR */}
       <div
         className={`w-64 shadow-2xl p-6 flex flex-col justify-between transition-all duration-300 ${
-          dark
-            ? "bg-gray-800"
-            : "bg-white"
+          dark ? "bg-gray-800" : "bg-white"
         }`}
       >
         <div>
@@ -206,15 +197,11 @@ export default function Assignment() {
       <div className="flex-1 flex flex-col p-6">
         <div
           className={`flex-1 flex flex-col rounded-3xl p-6 shadow-2xl transition-all duration-300 ${
-            dark
-              ? "bg-gray-800"
-              : "bg-white/70 backdrop-blur-lg"
+            dark ? "bg-gray-800" : "bg-white/70 backdrop-blur-lg"
           }`}
         >
           {/* Header */}
-          <h2 className="text-2xl font-bold mb-5">
-            🤖 Chat Assistant
-          </h2>
+          <h2 className="text-2xl font-bold mb-5">🤖 Chat Assistant</h2>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto space-y-4 pr-2">
@@ -222,9 +209,7 @@ export default function Assignment() {
               <div
                 key={i}
                 className={`flex ${
-                  msg.role === "user"
-                    ? "justify-end"
-                    : "justify-start"
+                  msg.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
@@ -232,8 +217,8 @@ export default function Assignment() {
                     msg.role === "user"
                       ? "bg-blue-600 text-white rounded-br-none"
                       : dark
-                      ? "bg-gray-700 text-white rounded-bl-none"
-                      : "bg-gray-200 text-black rounded-bl-none"
+                        ? "bg-gray-700 text-white rounded-bl-none"
+                        : "bg-gray-200 text-black rounded-bl-none"
                   }`}
                 >
                   {msg.text}
@@ -241,11 +226,7 @@ export default function Assignment() {
               </div>
             ))}
 
-            {loading && (
-              <p className="text-gray-400 text-sm">
-                Typing...
-              </p>
-            )}
+            {loading && <p className="text-gray-400 text-sm">Typing...</p>}
 
             <div ref={chatEndRef} />
           </div>
@@ -254,14 +235,9 @@ export default function Assignment() {
           <div className="flex gap-3 mt-5">
             <input
               value={message}
-              onChange={(e) =>
-                setMessage(e.target.value)
-              }
+              onChange={(e) => setMessage(e.target.value)}
               placeholder="Describe your problem..."
-              onKeyDown={(e) =>
-                e.key === "Enter" &&
-                sendMessage()
-              }
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
               className={`flex-1 px-5 py-3 rounded-xl outline-none border transition ${
                 dark
                   ? "bg-gray-700 text-white border-gray-600"
@@ -292,14 +268,10 @@ export default function Assignment() {
       <div className="w-[420px] p-6">
         <div
           className={`h-full overflow-y-auto rounded-3xl p-6 shadow-2xl transition-all duration-300 ${
-            dark
-              ? "bg-gray-800"
-              : "bg-white/70 backdrop-blur-lg"
+            dark ? "bg-gray-800" : "bg-white/70 backdrop-blur-lg"
           }`}
         >
-          <h2 className="text-2xl font-bold mb-5">
-            📝 Patient Registration
-          </h2>
+          <h2 className="text-2xl font-bold mb-5">📝 Patient Registration</h2>
 
           <PatientForm dark={dark} />
 
@@ -310,9 +282,7 @@ export default function Assignment() {
               <AppointmentForm
                 dark={dark}
                 formData={formData}
-                closeForm={() =>
-                  setShowForm(false)
-                }
+                closeForm={() => setShowForm(false)}
               />
             </>
           )}
