@@ -7,13 +7,13 @@ function AppointmentForm({ dark, closeForm }) {
     age: "",
     gender: "",
     department: "",
-    phone: ""
+    phone: "",
   });
 
   const handleChange = (e) => {
     setForm({
       ...form,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -22,8 +22,8 @@ function AppointmentForm({ dark, closeForm }) {
 
     try {
       await axios.post(
-        "http://localhost:5000/api/patients",
-        form
+        "https://hospital-voice-assistnce.onrender.com/api/patients",
+        form,
       );
 
       alert("✅ Appointment Booked!");
@@ -39,19 +39,14 @@ function AppointmentForm({ dark, closeForm }) {
   return (
     <div
       className={`mt-6 p-6 rounded-3xl shadow-xl transition-all duration-300 ${
-        dark
-          ? "bg-gray-800 text-white"
-          : "bg-white text-black"
+        dark ? "bg-gray-800 text-white" : "bg-white text-black"
       }`}
     >
       <h2 className="text-2xl font-bold mb-6 text-center">
         📅 Book Appointment
       </h2>
 
-      <form
-        onSubmit={handleSubmit}
-        className="space-y-4"
-      >
+      <form onSubmit={handleSubmit} className="space-y-4">
         {/* NAME */}
         <input
           type="text"
