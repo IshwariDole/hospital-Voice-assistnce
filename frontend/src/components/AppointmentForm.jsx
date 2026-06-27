@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 
-function AppointmentForm({ dark, closeForm }) {
+function AppointmentForm({ dark, closeForm, showToast }) {
   const [form, setForm] = useState({
     name: "",
     age: "",
@@ -9,98 +9,76 @@ function AppointmentForm({ dark, closeForm }) {
     department: "",
     phone: "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
 
     try {
       await axios.post(
         "https://hospital-voice-assistnce.onrender.com/api/patients",
-        form,
+        form
       );
-
-      alert("✅ Appointment Booked!");
-
+      showToast?.("Appointment booked successfully! 🎉", "success");
       closeForm();
-    } catch (err) {
-      console.error(err);
-
-      alert("❌ Error booking appointment");
+    } catch {
+      showToast?.("Error booking appointment. Try again.", "error");
     }
+
+    setSubmitting(false);
   };
 
-  return (
-    <div
-      className={`mt-6 p-6 rounded-3xl shadow-xl transition-all duration-300 ${
-        dark ? "bg-gray-800 text-white" : "bg-white text-black"
-      }`}
-    >
-      <h2 className="text-2xl font-bold mb-6 text-center">
-        📅 Book Appointment
-      </h2>
+  const fieldCls = `w-full px-4 py-3 rounded-xl border outline-none transition text-sm ${
+    dark
+      ? "bg-gray-700 text-white border-gray-600 placeholder-gray-400"
+      : "bg-gray-50 border-gray-200 focus:border-blue-400 focus:bg-white"
+  }`;
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* NAME */}
+  return (
+    <div>
+      <h2 className="text-lg font-bold mb-4">📅 Book Appointment</h2>
+
+      <form onSubmit={handleSubmit} className="space-y-3">
         <input
           type="text"
           name="name"
           placeholder="Full Name"
           onChange={handleChange}
+          value={form.name}
           required
-          className={`w-full p-3 rounded-xl border outline-none ${
-            dark
-              ? "bg-gray-700 text-white border-gray-600 placeholder-gray-300"
-              : "bg-gray-100 border-gray-300"
-          }`}
+          className={fieldCls}
         />
-
-        {/* AGE */}
         <input
           type="number"
           name="age"
           placeholder="Age"
           onChange={handleChange}
+          value={form.age}
           required
-          className={`w-full p-3 rounded-xl border outline-none ${
-            dark
-              ? "bg-gray-700 text-white border-gray-600 placeholder-gray-300"
-              : "bg-gray-100 border-gray-300"
-          }`}
+          className={fieldCls}
         />
-
-        {/* GENDER */}
         <select
           name="gender"
           onChange={handleChange}
+          value={form.gender}
           required
-          className={`w-full p-3 rounded-xl border outline-none ${
-            dark
-              ? "bg-gray-700 text-white border-gray-600"
-              : "bg-gray-100 border-gray-300"
-          }`}
+          className={fieldCls}
         >
           <option value="">Select Gender</option>
           <option>Male</option>
           <option>Female</option>
+          <option>Other</option>
         </select>
-
-        {/* DEPARTMENT */}
         <select
           name="department"
           onChange={handleChange}
+          value={form.department}
           required
-          className={`w-full p-3 rounded-xl border outline-none ${
-            dark
-              ? "bg-gray-700 text-white border-gray-600"
-              : "bg-gray-100 border-gray-300"
-          }`}
+          className={fieldCls}
         >
           <option value="">Select Department</option>
           <option>General Physician</option>
@@ -109,35 +87,34 @@ function AppointmentForm({ dark, closeForm }) {
           <option>Orthopedic</option>
           <option>Pediatrician</option>
           <option>Ophthalmologist</option>
+          <option>Neurologist</option>
         </select>
-
-        {/* PHONE */}
         <input
-          type="text"
+          type="tel"
           name="phone"
           placeholder="Phone Number"
           onChange={handleChange}
+          value={form.phone}
           required
-          className={`w-full p-3 rounded-xl border outline-none ${
-            dark
-              ? "bg-gray-700 text-white border-white placeholder-white-300"
-              : "bg-gray-100 border-gray-300"
-          }`}
+          className={fieldCls}
         />
 
-        {/* BUTTONS */}
-        <div className="flex gap-3 pt-3">
+        <div className="flex gap-3 pt-1">
           <button
             type="submit"
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl transition"
+            disabled={submitting}
+            className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-60 text-white py-3 rounded-xl text-sm font-semibold transition"
           >
-            Submit
+            {submitting ? "Booking..." : "Confirm Booking"}
           </button>
-
           <button
             type="button"
             onClick={closeForm}
-            className="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl transition"
+            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition active:scale-95 ${
+              dark
+                ? "bg-gray-700 hover:bg-gray-600 text-white"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+            }`}
           >
             Cancel
           </button>

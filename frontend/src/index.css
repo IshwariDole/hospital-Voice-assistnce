@@ -1,137 +1,125 @@
 @import "tailwindcss";
 @import "tailwindcss/preflight";
 @tailwind utilities;
+
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  font-family: sans-serif;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* === MOBILE VIEWPORT FIX === */
+html, body {
+  height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
-  background: #f5f7fb;
+  background: #f4f7fb;
 }
 
-/* NAVBAR */
-.navbar {
-  background: #0f172a;
-  color: white;
-  padding: 18px 40px;
+/* === CHAT MESSAGE ANIMATION === */
+.chat-msg {
+  animation: msg-appear 0.28s ease both;
+}
+
+@keyframes msg-appear {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* === TYPING DOTS === */
+.typing-dots {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 4px;
 }
 
-.navbar a {
-  color: white;
-  text-decoration: none;
-  margin-left: 20px;
-  font-weight: bold;
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #9ca3af;
+  animation: dot-bounce 1.2s ease-in-out infinite;
 }
 
-/* CONTAINERS */
-.container {
-  width: 90%;
-  max-width: 900px;
-  margin: 40px auto;
+.typing-dot:nth-child(1) { animation-delay: 0s; }
+.typing-dot:nth-child(2) { animation-delay: 0.18s; }
+.typing-dot:nth-child(3) { animation-delay: 0.36s; }
+
+@keyframes dot-bounce {
+  0%, 60%, 100% { transform: translateY(0); }
+  30%           { transform: translateY(-7px); }
 }
 
-/* CHAT */
-.chat-box {
-  background: white;
-  padding: 20px;
-  border-radius: 15px;
-  height: 400px;
-  overflow-y: auto;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+/* === MIC RING PULSE === */
+.mic-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 1rem;
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  animation: mic-pulse 1s ease-out infinite;
+  pointer-events: none;
 }
 
-.message {
-  margin: 10px 0;
+@keyframes mic-pulse {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.45); opacity: 0; }
 }
 
-.user {
-  text-align: right;
-  color: #2563eb;
+/* === TOAST SLIDE === */
+.toast-slide {
+  animation: toast-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
 
-.bot {
-  text-align: left;
-  color: #111827;
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-.input-area {
-  display: flex;
-  margin-top: 15px;
+/* === SIDEBAR TRANSITION === */
+.sidebar-transition {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-input {
-  flex: 1;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-}
-
-button {
-  padding: 12px 20px;
-  margin-left: 10px;
-  border: none;
-  background: #2563eb;
-  color: white;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-/* FORM */
-.form-container {
-  background: white;
-  padding: 30px;
-  border-radius: 15px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-.form-container input {
-  width: 100%;
-  margin-bottom: 15px;
-}
-
-/* TICKET */
-.ticket {
-  background: white;
-  padding: 30px;
-  border-radius: 15px;
-  text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-}
-
-.sidebar-btn {
-  @apply bg-blue-50 hover:bg-blue-100 text-blue-700 
-  p-3 rounded-xl mb-4 text-left transition font-medium;
-}
-
+/* === GLASS CARD === */
 .glass-card {
-  @apply bg-white/70 backdrop-blur-lg shadow-xl rounded-2xl p-6;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
 }
 
+/* LEGACY CLASSES (kept for other pages that still use them) */
 .input {
-  @apply flex-1 border rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-400;
+  display: flex;
+  flex: 1;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  padding: 0.625rem 1rem;
+  width: 100%;
+  outline: none;
 }
+.input:focus { box-shadow: 0 0 0 2px #93c5fd; }
 
 .primary-btn {
-  @apply bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-xl font-medium;
-}
-
-.dark {
-  background: #0f172a;
+  background: #2563eb;
   color: white;
-}
-
-/* RESET OLD STYLES */
-body {
-  background: #f4f7fb !important;
-}
-
-input {
-  outline: none;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
   border: none;
+  transition: background 0.2s;
+}
+.primary-btn:hover { background: #1d4ed8; }
+
+/* Fix iOS input zoom */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }
