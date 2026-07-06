@@ -6,9 +6,7 @@ An AI-powered Hospital Assistant that helps patients interact with a chatbot, re
 
 ## 🚀 Live Demo
 
-🌐 Frontend: https://your-vercel-url.vercel.app
-
-⚙️ Backend: https://your-render-url.onrender.com
+🌐 Frontend: https://hospital-voice-assistnce.vercel.app/
 
 ---
 
