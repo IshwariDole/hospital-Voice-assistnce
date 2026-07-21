@@ -1,127 +1,119 @@
 import { useState } from "react";
 import axios from "axios";
 
-function AppointmentForm({ dark, closeForm, showToast }) {
+const DEPTS = [
+  { value:"General Physician", icon:"🩺" },
+  { value:"Cardiologist",      icon:"❤️" },
+  { value:"Dermatologist",     icon:"🧴" },
+  { value:"Orthopedic",        icon:"🦴" },
+  { value:"Pediatrician",      icon:"👶" },
+  { value:"Ophthalmologist",   icon:"👁️" },
+  { value:"Neurologist",       icon:"🧠" },
+];
+
+export default function AppointmentForm({ dark, closeForm, showToast, prefillDept="" }) {
   const [form, setForm] = useState({
-    name: "",
-    age: "",
-    gender: "",
-    department: "",
-    phone: "",
+    name:"", age:"", gender:"", department: prefillDept, phone:"",
   });
-  const [submitting, setSubmitting] = useState(false);
+  const [busy, setBusy]   = useState(false);
+  const [done, setDone]   = useState(false);
 
-  const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const set = e => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = async (e) => {
+  const submit = async e => {
     e.preventDefault();
-    setSubmitting(true);
-
+    setBusy(true);
     try {
-      await axios.post(
-        "https://hospital-voice-assistnce.onrender.com/api/patients",
-        form
-      );
-      showToast?.("Appointment booked successfully! 🎉", "success");
-      closeForm();
+      await axios.post("https://hospital-voice-assistnce.onrender.com/api/patients", form);
+      setDone(true);
+      showToast?.("Appointment booked! 🎉", "success");
+      setTimeout(() => closeForm(), 1800);
     } catch {
-      showToast?.("Error booking appointment. Try again.", "error");
+      showToast?.("Booking failed. Try again.", "error");
     }
-
-    setSubmitting(false);
+    setBusy(false);
   };
 
-  const fieldCls = `w-full px-4 py-3 rounded-xl border outline-none transition text-sm ${
-    dark
-      ? "bg-gray-700 text-white border-gray-600 placeholder-gray-400"
-      : "bg-gray-50 border-gray-200 focus:border-blue-400 focus:bg-white"
-  }`;
+  const fld = `field${dark ? " dark-field" : ""}`;
+  const lbl = {
+    display:"block", fontSize:11, fontWeight:700,
+    marginBottom:6, letterSpacing:"0.4px", textTransform:"uppercase",
+    color: dark ? "rgba(255,255,255,0.5)" : "#4B5E7A",
+  };
 
   return (
-    <div>
-      <h2 className="text-lg font-bold mb-4">📅 Book Appointment</h2>
+    <form onSubmit={submit} style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
-        <input
-          type="text"
-          name="name"
-          placeholder="Full Name"
-          onChange={handleChange}
-          value={form.name}
-          required
-          className={fieldCls}
-        />
-        <input
-          type="number"
-          name="age"
-          placeholder="Age"
-          onChange={handleChange}
-          value={form.age}
-          required
-          className={fieldCls}
-        />
-        <select
-          name="gender"
-          onChange={handleChange}
-          value={form.gender}
-          required
-          className={fieldCls}
-        >
-          <option value="">Select Gender</option>
+      <div style={{ display:"grid", gridTemplateColumns:"1fr 80px", gap:10 }}>
+        <div>
+          <label style={lbl}>Full Name</label>
+          <input name="name" className={fld} placeholder="Your name" value={form.name} onChange={set} required />
+        </div>
+        <div>
+          <label style={lbl}>Age</label>
+          <input name="age" type="number" className={fld} placeholder="28" value={form.age} onChange={set} required />
+        </div>
+      </div>
+
+      <div>
+        <label style={lbl}>Gender</label>
+        <select name="gender" className={fld} value={form.gender} onChange={set} required>
+          <option value="">Select</option>
           <option>Male</option>
           <option>Female</option>
           <option>Other</option>
         </select>
-        <select
-          name="department"
-          onChange={handleChange}
-          value={form.department}
-          required
-          className={fieldCls}
-        >
-          <option value="">Select Department</option>
-          <option>General Physician</option>
-          <option>Cardiologist</option>
-          <option>Dermatologist</option>
-          <option>Orthopedic</option>
-          <option>Pediatrician</option>
-          <option>Ophthalmologist</option>
-          <option>Neurologist</option>
-        </select>
-        <input
-          type="tel"
-          name="phone"
-          placeholder="Phone Number"
-          onChange={handleChange}
-          value={form.phone}
-          required
-          className={fieldCls}
-        />
+      </div>
 
-        <div className="flex gap-3 pt-1">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 active:scale-95 disabled:opacity-60 text-white py-3 rounded-xl text-sm font-semibold transition"
-          >
-            {submitting ? "Booking..." : "Confirm Booking"}
-          </button>
-          <button
-            type="button"
-            onClick={closeForm}
-            className={`flex-1 py-3 rounded-xl text-sm font-semibold transition active:scale-95 ${
-              dark
-                ? "bg-gray-700 hover:bg-gray-600 text-white"
-                : "bg-gray-100 hover:bg-gray-200 text-gray-700"
-            }`}
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    </div>
+      <div>
+        <label style={lbl}>Department</label>
+        <select name="department" className={fld} value={form.department} onChange={set} required>
+          <option value="">Choose department</option>
+          {DEPTS.map(d => (
+            <option key={d.value} value={d.value}>{d.icon} {d.value}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label style={lbl}>Phone Number</label>
+        <input name="phone" type="tel" className={fld} placeholder="+91 98765 43210" value={form.phone} onChange={set} required />
+      </div>
+
+      <div style={{ display:"flex", gap:10, marginTop:4 }}>
+        <button
+          type="submit"
+          disabled={busy || done}
+          style={{
+            flex:1, padding:"12px",
+            borderRadius:12, border:"none",
+            background: done ? "#059669" : busy ? "#8EB8F7" : "linear-gradient(135deg,#1D6AE5,#1558C9)",
+            color:"white", fontFamily:"inherit",
+            fontSize:14, fontWeight:700,
+            cursor: busy||done ? "not-allowed" : "pointer",
+            boxShadow: done||busy ? "none" : "0 4px 16px rgba(29,106,229,0.28)",
+            transition:"all 0.2s",
+          }}
+        >
+          {done ? "✓ Booked!" : busy ? "Booking…" : "Confirm Booking"}
+        </button>
+
+        <button
+          type="button"
+          onClick={closeForm}
+          style={{
+            padding:"12px 18px",
+            borderRadius:12,
+            border: `1.5px solid ${dark ? "rgba(255,255,255,0.15)" : "#DDE6F5"}`,
+            background:"transparent",
+            color: dark ? "rgba(255,255,255,0.65)" : "#4B5E7A",
+            fontFamily:"inherit", fontSize:14, fontWeight:600,
+            cursor:"pointer",
+          }}
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 }
-
-export default AppointmentForm;

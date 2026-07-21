@@ -1,409 +1,674 @@
 import { useState, useEffect, useRef } from "react";
-import AppointmentForm from "../components/AppointmentForm";
-import PatientForm from "./PatientForm";
-import Toast from "../components/Toast";
-import { Moon, Sun, Stethoscope, Menu, X, Send, Mic, MicOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import AppointmentForm from "../components/AppointmentForm";
+import PatientForm     from "./PatientForm";
+import Toast           from "../components/Toast";
+
+/* ── Timestamp helper ── */
+const ts = () => new Date().toLocaleTimeString("en-IN", { hour:"2-digit", minute:"2-digit" });
+
+/* ── Quick-reply chips (shown after first bot message) ── */
+const CHIPS = [
+  { label: "Book appointment",  icon: "📅" },
+  { label: "Find a doctor",     icon: "👨‍⚕️" },
+  { label: "Medical help",      icon: "💊" },
+  { label: "Emergency contact", icon: "🚨" },
+];
+
+/* ── Sidebar nav items ── */
+const NAV = [
+  { label:"Book Appointment",   icon:"📅", id:"book"    },
+  { label:"Our Doctors",        icon:"👨‍⚕️", id:"doctors" },
+  { label:"Patient Records",    icon:"📋", id:"records" },
+  { label:"Medical Help",       icon:"💊", id:"help"    },
+];
+
+/* ── Animated AI avatar ── */
+function BotAvatar({ spinning }) {
+  return (
+    <div style={{ position:"relative", width:34, height:34, flexShrink:0 }}>
+      {/* Gradient ring — spins when bot is typing */}
+      <div
+        className={spinning ? "ring-spin" : ""}
+        style={{
+          position:"absolute", inset:-2,
+          borderRadius:"50%",
+          background:"conic-gradient(from 0deg, #1D6AE5, #38BDF8, #1D6AE5)",
+          opacity: spinning ? 1 : 0.6,
+          transition:"opacity 0.3s",
+        }}
+      />
+      {/* Inner circle */}
+      <div style={{
+        position:"absolute", inset:2, borderRadius:"50%",
+        background:"white", display:"flex", alignItems:"center",
+        justifyContent:"center", fontSize:15,
+      }}>🤖</div>
+    </div>
+  );
+}
+
+/* ── Typing indicator ── */
+function TypingBubble() {
+  return (
+    <div className="msg-in" style={{ display:"flex", alignItems:"flex-end", gap:8 }}>
+      <BotAvatar spinning />
+      <div style={{
+        background:"white", border:"1.5px solid #DDE6F5",
+        borderRadius:"18px 18px 18px 4px",
+        padding:"14px 18px",
+        boxShadow:"0 2px 8px rgba(11,29,53,0.06)",
+        display:"flex", gap:5, alignItems:"center",
+      }}>
+        <span className="dot" />
+        <span className="dot" />
+        <span className="dot" />
+      </div>
+    </div>
+  );
+}
 
 export default function Assignment() {
   const nav = useNavigate();
 
-  // Theme
-  const [dark, setDark] = useState(false);
-
-  // Mobile sidebar
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  // Mobile right panel (forms)
-  const [showMobilePanel, setShowMobilePanel] = useState(false);
-
-  // Chat
-  const [chat, setChat] = useState([
-    { role: "bot", text: "Hi 👋 I am your AI Hospital Assistant. How can I help you?" },
-  ]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(false);
+  /* ── State ── */
+  const [dark, setDark]           = useState(false);
+  const [sideOpen, setSideOpen]   = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [showForm, setShowForm]   = useState(false);
+  const [toast, setToast]         = useState(null);
+  const [loading, setLoading]     = useState(false);
+  const [message, setMessage]     = useState("");
   const [listening, setListening] = useState(false);
+  const [chat, setChat] = useState([
+    {
+      role:"bot",
+      text:"Hello! 👋 I'm your MediAssist AI. I can help you book appointments, find the right department, or answer health questions. How can I help?",
+      time: ts(),
+      chips: true,
+    },
+  ]);
 
-  // Appointment Form
-  const [showForm, setShowForm] = useState(false);
-  const [formData, setFormData] = useState({ name: "", department: "", time: "" });
+  const chatEndRef  = useRef(null);
+  const inputRef    = useRef(null);
+  const recognRef   = useRef(null);
 
-  // Toast
-  const [toast, setToast] = useState(null);
-
-  const chatEndRef = useRef(null);
-  const recognitionRef = useRef(null);
-  const inputRef = useRef(null);
-
+  /* Auto-scroll chat */
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    chatEndRef.current?.scrollIntoView({ behavior:"smooth" });
   }, [chat, loading]);
 
-  const showToast = (msg, type = "success") => {
+  /* Toast helper */
+  const showToast = (msg, type="success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 3200);
   };
 
-  // Voice input
-  const toggleListening = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+  /* ── Voice ── */
+  const toggleVoice = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { showToast("Speech not supported in this browser", "error"); return; }
 
-    if (!SpeechRecognition) {
-      showToast("Speech recognition not supported in this browser", "error");
-      return;
-    }
+    if (listening) { recognRef.current?.stop(); setListening(false); return; }
 
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.lang = "en-IN";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-
+    const r = new SR();
+    recognRef.current = r;
+    r.lang = "en-IN";
+    r.continuous = false;
+    r.interimResults = false;
     setListening(true);
-    recognition.start();
+    r.start();
 
-    recognition.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      setMessage(text);
+    r.onresult = e => {
+      setMessage(e.results[0][0].transcript);
       setListening(false);
       showToast("Voice captured!", "success");
       inputRef.current?.focus();
     };
-
-    recognition.onerror = () => {
-      showToast("Couldn't capture voice. Try again.", "error");
-      setListening(false);
-    };
-
-    recognition.onend = () => setListening(false);
+    r.onerror = () => { showToast("Couldn't hear you. Try again.", "error"); setListening(false); };
+    r.onend   = () => setListening(false);
   };
 
-  // Send message
-  const sendMessage = async () => {
-    if (!message.trim()) return;
+  /* ── Send message ── */
+  const send = async (text) => {
+    const msg = (text || message).trim();
+    if (!msg) return;
 
-    const userMessage = message;
-    const newChat = [...chat, { role: "user", text: userMessage }];
+    const newChat = [...chat, { role:"user", text:msg, time:ts() }];
     setChat(newChat);
     setMessage("");
     setLoading(true);
 
-    // Auto-detect booking details (Name, Department, Time)
-    if (userMessage.includes(",")) {
-      const parts = userMessage.split(",");
-      if (parts.length >= 2) {
-        setFormData({
-          name: parts[0]?.trim(),
-          department: parts[1]?.trim(),
-          time: parts[2]?.trim() || "",
-        });
-        setShowForm(true);
-      }
+    /* Auto-detect booking intent from comma-separated input */
+    if (msg.includes(",")) {
+      const parts = msg.split(",");
+      if (parts.length >= 2) setShowForm(true);
     }
 
     try {
-      const res = await fetch("https://hospital-voice-assistnce.onrender.com/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMessage }),
+      const res  = await fetch("https://hospital-voice-assistnce.onrender.com/chat", {
+        method:"POST",
+        headers:{ "Content-Type":"application/json" },
+        body: JSON.stringify({ message: msg }),
       });
-
       const data = await res.json();
-      const aiReply = data.reply;
+      const reply = data.reply || "I'm here to help! Could you describe your concern?";
 
-      setChat([...newChat, { role: "bot", text: aiReply }]);
-
-      if (aiReply.toLowerCase().includes("appointment")) {
-        setShowForm(true);
-      }
+      setChat([...newChat, { role:"bot", text:reply, time:ts() }]);
+      if (reply.toLowerCase().includes("appointment")) setShowForm(true);
     } catch {
-      setChat([
-        ...newChat,
-        { role: "bot", text: "Sorry, connection error. Please try again. 😢" },
-      ]);
-      showToast("Server error. Check your connection.", "error");
+      setChat([...newChat, {
+        role:"bot",
+        text:"I couldn't connect to the server right now. Please try again shortly. 🔄",
+        time:ts(),
+      }]);
+      showToast("Connection error", "error");
     }
-
     setLoading(false);
   };
 
-  // Colour tokens
-  const pageBg = dark
-    ? "bg-gray-900 text-white"
-    : "bg-gradient-to-br from-blue-50 to-indigo-100 text-gray-900";
-  const cardBg = dark
-    ? "bg-gray-800"
-    : "bg-white/80 backdrop-blur-lg";
-  const sidebarBg = dark ? "bg-gray-800 border-gray-700" : "bg-white border-gray-100";
-  const inputCls = dark
-    ? "bg-gray-700 text-white border-gray-600 placeholder-gray-400"
-    : "bg-white border-gray-200";
+  /* ── Chip tap ── */
+  const chipTap = (chip) => {
+    send(chip.label);
+    if (chip.id === "book" || chip.label === "Book appointment") { setShowForm(true); }
+  };
+
+  /* ── Sidebar nav tap ── */
+  const navTap = (id) => {
+    setSideOpen(false);
+    if (id === "doctors")  { nav("/doctors"); return; }
+    if (id === "book")     { setShowForm(true); setPanelOpen(true); return; }
+    if (id === "records")  { setPanelOpen(true); return; }
+  };
+
+  /* ── Theme colours ── */
+  const bg       = dark ? "#111827" : "#F7FAFE";
+  const cardBg   = dark ? "#1F2937" : "#FFFFFF";
+  const chatBg   = dark ? "#111827" : "#F0F5FF";
+  const borderC  = dark ? "rgba(255,255,255,0.08)" : "#DDE6F5";
+  const mutedC   = dark ? "rgba(255,255,255,0.45)" : "#4B5E7A";
 
   return (
-    <div className={`h-[100dvh] flex overflow-hidden transition-colors duration-300 ${pageBg}`}>
+    <div style={{
+      height:"100dvh", display:"flex", overflow:"hidden",
+      background: bg, fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif",
+      transition:"background 0.3s",
+    }}>
 
-      {/* ── Toast ── */}
+      {/* ─── Toast ─── */}
       {toast && <Toast message={toast.msg} type={toast.type} />}
 
-      {/* ── Mobile backdrop ── */}
-      {sidebarOpen && (
+      {/* ─── Mobile backdrop ─── */}
+      {sideOpen && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setSideOpen(false)}
+          style={{
+            position:"fixed", inset:0, background:"rgba(0,0,0,0.5)",
+            zIndex:40, backdropFilter:"blur(4px)",
+          }}
         />
       )}
 
-      {/* ══════════════════════════════════
-          SIDEBAR
-      ══════════════════════════════════ */}
+      {/* ═══════════════════════════════
+          SIDEBAR — always dark navy
+      ═══════════════════════════════ */}
       <aside
-        className={`
-          fixed md:relative z-50 md:z-auto
-          h-full w-72 md:w-60 flex flex-col justify-between
-          p-5 border-r shadow-2xl md:shadow-lg
-          sidebar-transition
-          ${sidebarBg}
-          ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-        `}
+        className={sideOpen ? "drawer-in" : ""}
+        style={{
+          position: "fixed",
+          zIndex: 50,
+          top:0, left:0, bottom:0,
+          width: 240,
+          background: "#0B1D35",
+          display: "flex",
+          flexDirection: "column",
+          padding: "24px 16px",
+          borderRight: "1px solid rgba(255,255,255,0.07)",
+          transform: sideOpen ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+
+          /* Always visible on desktop */
+          ...(typeof window !== "undefined" && window.innerWidth >= 768 ? {} : {}),
+        }}
+
+        /* Desktop: always visible */
+        data-sidebar="true"
       >
-        {/* Top section */}
-        <div>
-          <div className="flex items-center justify-between mb-8">
-            <h1 className="text-lg font-bold text-blue-600">🏥 AI Hospital</h1>
-            <button
-              onClick={() => setSidebarOpen(false)}
-              className={`md:hidden p-2 rounded-xl transition ${dark ? "hover:bg-gray-700" : "hover:bg-gray-100"}`}
-            >
-              <X size={18} />
-            </button>
+        {/* Logo */}
+        <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:32, paddingLeft:4 }}>
+          <div style={{
+            width:36, height:36, borderRadius:10,
+            background:"linear-gradient(135deg,#1D6AE5,#38BDF8)",
+            display:"flex", alignItems:"center", justifyContent:"center", fontSize:18,
+          }}>🏥</div>
+          <div>
+            <div style={{ color:"white", fontWeight:800, fontSize:15 }}>MediAssist</div>
+            <div style={{ color:"rgba(255,255,255,0.38)", fontSize:10, marginTop:1 }}>AI Hospital</div>
           </div>
-
-          <nav className="space-y-2">
-            <button
-              onClick={() => { setShowMobilePanel(true); setSidebarOpen(false); }}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white transition text-sm font-semibold"
-            >
-              📅 Book Appointment
-            </button>
-
-            <button
-              onClick={() => { nav("/doctors"); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition text-sm font-medium active:scale-95 ${
-                dark ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"
-              }`}
-            >
-              <Stethoscope size={16} /> Our Doctors
-            </button>
-
-            <button
-              onClick={() => { nav("/"); setSidebarOpen(false); }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition text-sm font-medium active:scale-95 ${
-                dark ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"
-              }`}
-            >
-              🚪 Logout
-            </button>
-          </nav>
         </div>
 
-        {/* Theme toggle */}
-        <button
-          onClick={() => setDark(!dark)}
-          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-2xl transition text-sm font-semibold active:scale-95 ${
-            dark
-              ? "bg-yellow-400 hover:bg-yellow-300 text-gray-900"
-              : "bg-gray-900 hover:bg-gray-700 text-white"
-          }`}
-        >
-          {dark ? <Sun size={15} /> : <Moon size={15} />}
-          {dark ? "Light Mode" : "Dark Mode"}
-        </button>
+        {/* Nav */}
+        <nav style={{ display:"flex", flexDirection:"column", gap:4, flex:1 }}>
+          <div style={{ fontSize:10, fontWeight:700, color:"rgba(255,255,255,0.28)", letterSpacing:"0.8px", padding:"0 8px 8px", textTransform:"uppercase" }}>
+            Navigation
+          </div>
+          {NAV.map(n => (
+            <button
+              key={n.id}
+              onClick={() => navTap(n.id)}
+              style={{
+                display:"flex", alignItems:"center", gap:10,
+                width:"100%", padding:"10px 12px",
+                borderRadius:10, border:"none",
+                background: "transparent",
+                color: "rgba(255,255,255,0.75)",
+                fontFamily:"inherit", fontSize:14, fontWeight:600,
+                cursor:"pointer", textAlign:"left",
+                transition:"background 0.15s, color 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background="rgba(255,255,255,0.08)"; e.currentTarget.style.color="white"; }}
+              onMouseLeave={e => { e.currentTarget.style.background="transparent"; e.currentTarget.style.color="rgba(255,255,255,0.75)"; }}
+            >
+              <span style={{ fontSize:16 }}>{n.icon}</span>
+              {n.label}
+            </button>
+          ))}
+        </nav>
+
+        {/* Bottom section */}
+        <div style={{ borderTop:"1px solid rgba(255,255,255,0.08)", paddingTop:16, display:"flex", flexDirection:"column", gap:8 }}>
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => setDark(!dark)}
+            style={{
+              display:"flex", alignItems:"center", gap:10,
+              padding:"10px 12px", borderRadius:10, border:"none",
+              background:"rgba(255,255,255,0.06)",
+              color:"rgba(255,255,255,0.7)",
+              fontFamily:"inherit", fontSize:13, fontWeight:600,
+              cursor:"pointer", transition:"background 0.15s",
+            }}
+          >
+            <span>{dark ? "☀️" : "🌙"}</span>
+            {dark ? "Light mode" : "Dark mode"}
+          </button>
+
+          {/* Sign out */}
+          <button
+            onClick={() => nav("/")}
+            style={{
+              display:"flex", alignItems:"center", gap:10,
+              padding:"10px 12px", borderRadius:10, border:"none",
+              background:"transparent",
+              color:"rgba(255,255,255,0.45)",
+              fontFamily:"inherit", fontSize:13, fontWeight:600,
+              cursor:"pointer",
+            }}
+          >
+            <span>🚪</span> Sign out
+          </button>
+        </div>
       </aside>
 
-      {/* ══════════════════════════════════
-          MAIN CONTENT
-      ══════════════════════════════════ */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-w-0">
+      {/* ═══════════════════════════════
+          MAIN AREA (right of sidebar)
+      ═══════════════════════════════ */}
+      <div style={{
+        flex:1, display:"flex", overflow:"hidden",
+        marginLeft:0,          /* sidebar uses fixed positioning */
+      }}>
 
-        {/* ── Chat Section ── */}
-        <div className="flex-1 flex flex-col p-3 md:p-5 min-h-0">
+        {/* ── Desktop sidebar spacer ── */}
+        <div style={{ width:240, flexShrink:0, display:"none" }} className="md-sidebar-spacer" />
+
+        {/* ═══════════════
+            CHAT SECTION
+        ═══════════════ */}
+        <div style={{
+          flex:1, display:"flex", flexDirection:"column",
+          padding:16, gap:12, minWidth:0, overflow:"hidden",
+        }}>
 
           {/* Mobile top bar */}
-          <div className={`flex items-center justify-between mb-3 md:hidden p-3 rounded-2xl shadow-sm ${cardBg}`}>
+          <div style={{
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            padding:"10px 14px",
+            background: cardBg,
+            borderRadius:16,
+            border:`1px solid ${borderC}`,
+            boxShadow:"0 2px 8px rgba(11,29,53,0.06)",
+            flexShrink:0,
+          }}>
+            {/* Hamburger */}
             <button
-              onClick={() => setSidebarOpen(true)}
-              className={`p-2 rounded-xl transition ${dark ? "hover:bg-gray-700" : "hover:bg-gray-100"}`}
-            >
-              <Menu size={20} />
-            </button>
-            <h2 className="font-bold text-blue-600 text-sm">🏥 AI Hospital Assistant</h2>
-            <button
-              onClick={() => setDark(!dark)}
-              className={`p-2 rounded-xl transition ${dark ? "hover:bg-gray-700" : "hover:bg-gray-100"}`}
-            >
-              {dark ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-          </div>
+              onClick={() => setSideOpen(true)}
+              style={{
+                width:36, height:36, borderRadius:10,
+                background: dark ? "rgba(255,255,255,0.08)" : "#F0F5FF",
+                border:"none", cursor:"pointer",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:18,
+              }}
+            >☰</button>
 
-          {/* Chat Card */}
-          <div className={`flex-1 flex flex-col rounded-3xl p-4 md:p-6 shadow-xl overflow-hidden ${cardBg}`}>
-
-            {/* Desktop heading */}
-            <h2 className="text-xl font-bold mb-4 hidden md:block">🤖 Chat Assistant</h2>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1 overscroll-contain">
-              {chat.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex chat-msg ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  {msg.role === "bot" && (
-                    <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs shrink-0 mr-2 mt-0.5 shadow-sm">
-                      🤖
-                    </div>
-                  )}
-                  <div
-                    className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                      msg.role === "user"
-                        ? "bg-blue-600 text-white rounded-br-sm"
-                        : dark
-                          ? "bg-gray-700 text-white rounded-bl-sm"
-                          : "bg-gray-100 text-gray-800 rounded-bl-sm"
-                    }`}
-                  >
-                    {msg.text}
-                  </div>
+            {/* AI status */}
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <BotAvatar spinning={false} />
+              <div>
+                <div style={{ fontWeight:700, fontSize:13, color: dark?"white":"#0B1D35" }}>MediAssist AI</div>
+                <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:1 }}>
+                  <span style={{ width:6, height:6, borderRadius:"50%", background:"#059669", display:"inline-block" }} />
+                  <span style={{ fontSize:10, color:"#059669", fontWeight:700 }}>Online</span>
                 </div>
-              ))}
-
-              {/* Typing indicator */}
-              {loading && (
-                <div className="flex justify-start chat-msg">
-                  <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center text-xs shrink-0 mr-2 mt-0.5">
-                    🤖
-                  </div>
-                  <div className={`px-5 py-4 rounded-2xl rounded-bl-sm shadow-sm ${dark ? "bg-gray-700" : "bg-gray-100"}`}>
-                    <div className="typing-dots">
-                      <span className="typing-dot" />
-                      <span className="typing-dot" />
-                      <span className="typing-dot" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div ref={chatEndRef} />
+              </div>
             </div>
 
-            {/* Listening indicator */}
-            {listening && (
-              <div className="flex items-center gap-2 px-1 py-2 text-red-500 text-xs font-semibold">
-                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                Listening — speak now...
-              </div>
-            )}
+            {/* Mobile forms button */}
+            <button
+              onClick={() => setPanelOpen(true)}
+              style={{
+                width:36, height:36, borderRadius:10,
+                background: "linear-gradient(135deg,#1D6AE5,#38BDF8)",
+                border:"none", cursor:"pointer",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:16, color:"white",
+              }}
+            >📋</button>
+          </div>
 
-            {/* Input row */}
-            <div className="flex gap-2 mt-3">
+          {/* Chat messages */}
+          <div style={{
+            flex:1, overflowY:"auto", overscrollBehavior:"contain",
+            display:"flex", flexDirection:"column", gap:16,
+            padding:"4px 4px 8px",
+          }}>
+            {chat.map((msg, i) => (
+              <div key={i} className="msg-in">
+                {/* Bot message */}
+                {msg.role === "bot" && (
+                  <div>
+                    <div style={{ display:"flex", alignItems:"flex-end", gap:8 }}>
+                      <BotAvatar spinning={false} />
+                      <div style={{ maxWidth:"76%" }}>
+                        <div style={{
+                          background: cardBg,
+                          border:`1.5px solid ${borderC}`,
+                          borderRadius:"18px 18px 18px 4px",
+                          padding:"12px 16px",
+                          fontSize:14, lineHeight:1.55,
+                          color: dark ? "rgba(255,255,255,0.9)" : "#0B1D35",
+                          boxShadow:"0 2px 8px rgba(11,29,53,0.06)",
+                        }}>
+                          {msg.text}
+                        </div>
+                        <div style={{ fontSize:10, color:mutedC, marginTop:4, marginLeft:4 }}>{msg.time}</div>
+                      </div>
+                    </div>
+
+                    {/* Quick-reply chips — only on first message */}
+                    {msg.chips && (
+                      <div style={{
+                        display:"flex", flexWrap:"wrap", gap:8,
+                        marginTop:12, marginLeft:42,
+                      }}>
+                        {CHIPS.map(c => (
+                          <button
+                            key={c.label}
+                            className="chip"
+                            onClick={() => chipTap(c)}
+                            style={{
+                              background: dark ? "rgba(255,255,255,0.06)" : undefined,
+                              borderColor: dark ? "rgba(255,255,255,0.15)" : undefined,
+                              color: dark ? "rgba(255,255,255,0.7)" : undefined,
+                            }}
+                          >
+                            <span>{c.icon}</span>{c.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* User message */}
+                {msg.role === "user" && (
+                  <div style={{ display:"flex", justifyContent:"flex-end" }}>
+                    <div style={{ maxWidth:"76%", textAlign:"right" }}>
+                      <div style={{
+                        display:"inline-block",
+                        background:"linear-gradient(135deg,#1D6AE5,#1558C9)",
+                        borderRadius:"18px 18px 4px 18px",
+                        padding:"12px 16px",
+                        fontSize:14, lineHeight:1.55, color:"white",
+                        boxShadow:"0 4px 16px rgba(29,106,229,0.30)",
+                      }}>
+                        {msg.text}
+                      </div>
+                      <div style={{ fontSize:10, color:mutedC, marginTop:4, marginRight:4 }}>{msg.time}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {loading && <TypingBubble />}
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Listening bar */}
+          {listening && (
+            <div style={{
+              display:"flex", alignItems:"center", gap:8,
+              padding:"8px 16px", borderRadius:100,
+              background:"rgba(220,38,38,0.10)",
+              border:"1px solid rgba(220,38,38,0.2)",
+              alignSelf:"center", flexShrink:0,
+            }}>
+              <span style={{ width:8, height:8, borderRadius:"50%", background:"#DC2626", display:"inline-block", animation:"mic-pulse 1s infinite" }} />
+              <span style={{ fontSize:12, fontWeight:700, color:"#DC2626" }}>Listening… speak now</span>
+            </div>
+          )}
+
+          {/* Input row */}
+          <div style={{
+            display:"flex", gap:8, flexShrink:0,
+            paddingBottom:"env(safe-area-inset-bottom)",
+          }}>
+            <div style={{
+              flex:1,
+              display:"flex", alignItems:"center",
+              background: cardBg,
+              borderRadius:14,
+              border:`1.5px solid ${listening ? "#DC2626" : borderC}`,
+              transition:"border-color 0.2s",
+              overflow:"hidden",
+              boxShadow:`0 2px 8px rgba(11,29,53,0.06)`,
+            }}>
               <input
                 ref={inputRef}
                 value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                placeholder="Describe your problem..."
-                className={`flex-1 px-4 py-3 rounded-2xl text-sm outline-none border transition min-w-0 ${inputCls}`}
+                onChange={e => setMessage(e.target.value)}
+                onKeyDown={e => e.key === "Enter" && !e.shiftKey && send()}
+                placeholder="Ask me anything or describe your symptoms…"
+                style={{
+                  flex:1, padding:"13px 16px",
+                  border:"none", outline:"none", background:"transparent",
+                  fontFamily:"inherit", fontSize:14,
+                  color: dark ? "rgba(255,255,255,0.9)" : "#0B1D35",
+                }}
               />
+              {/* Inline mic button */}
               <button
-                onClick={sendMessage}
-                disabled={!message.trim()}
-                title="Send"
-                className="bg-blue-600 hover:bg-blue-700 active:scale-90 disabled:opacity-40 text-white p-3 rounded-2xl transition shrink-0"
+                onClick={toggleVoice}
+                className={listening ? "mic-active" : ""}
+                style={{
+                  width:40, height:40, borderRadius:10, border:"none",
+                  background: listening ? "#DC2626" : "transparent",
+                  color: listening ? "white" : mutedC,
+                  cursor:"pointer", display:"flex",
+                  alignItems:"center", justifyContent:"center",
+                  fontSize:18, margin:"0 4px",
+                  transition:"all 0.2s",
+                }}
+                title={listening ? "Stop recording" : "Start voice input"}
               >
-                <Send size={16} />
-              </button>
-              <button
-                onClick={toggleListening}
-                title={listening ? "Stop" : "Speak"}
-                className={`relative p-3 rounded-2xl text-white transition shrink-0 active:scale-90 ${
-                  listening
-                    ? "bg-red-500 hover:bg-red-600"
-                    : "bg-green-500 hover:bg-green-600"
-                }`}
-              >
-                {listening ? <MicOff size={16} /> : <Mic size={16} />}
-                {listening && <span className="mic-ring" />}
+                {listening ? "🔴" : "🎙️"}
               </button>
             </div>
+
+            <button
+              onClick={() => send()}
+              disabled={!message.trim()}
+              style={{
+                width:48, height:48, borderRadius:14, border:"none",
+                background: message.trim()
+                  ? "linear-gradient(135deg,#1D6AE5,#1558C9)"
+                  : dark ? "rgba(255,255,255,0.08)" : "#DDE6F5",
+                color: message.trim() ? "white" : mutedC,
+                cursor: message.trim() ? "pointer" : "not-allowed",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:18, transition:"all 0.2s", flexShrink:0,
+                boxShadow: message.trim() ? "0 4px 16px rgba(29,106,229,0.35)" : "none",
+              }}
+              title="Send"
+            >
+              ➤
+            </button>
           </div>
         </div>
 
-        {/* ── Right Panel (desktop only) ── */}
-        <div className="hidden md:block w-[380px] p-5 overflow-y-auto">
-          <div className={`min-h-full rounded-3xl p-6 shadow-xl ${cardBg}`}>
-            <h2 className="text-xl font-bold mb-5">📝 Patient Registration</h2>
+        {/* ═══════════════════
+            RIGHT FORMS PANEL (desktop)
+        ═══════════════════ */}
+        <div style={{
+          width:360, flexShrink:0,
+          padding:"16px 16px 16px 0",
+          overflowY:"auto",
+          display:"none",    /* hidden on mobile via CSS below */
+        }} className="forms-panel">
+          <div style={{
+            background: cardBg,
+            borderRadius:20,
+            border:`1px solid ${borderC}`,
+            padding:"24px 20px",
+            boxShadow:"0 2px 12px rgba(11,29,53,0.07)",
+            minHeight:"100%",
+          }}>
+            {/* Section heading */}
+            <div style={{ marginBottom:20 }}>
+              <h2 style={{ fontSize:16, fontWeight:800, color: dark?"white":"#0B1D35", letterSpacing:"-0.3px" }}>
+                📋 Patient Registration
+              </h2>
+              <p style={{ fontSize:12, color:mutedC, marginTop:4 }}>Register a new patient record</p>
+            </div>
+
             <PatientForm dark={dark} showToast={showToast} />
+
+            {/* Divider */}
+            <div style={{
+              display:"flex", alignItems:"center", gap:12, margin:"24px 0",
+            }}>
+              <div style={{ flex:1, height:1, background:borderC }} />
+              <button
+                onClick={() => setShowForm(!showForm)}
+                style={{
+                  padding:"6px 14px", borderRadius:100,
+                  border:`1.5px solid ${borderC}`,
+                  background:"transparent",
+                  fontFamily:"inherit", fontSize:12, fontWeight:700,
+                  color: dark ? "rgba(255,255,255,0.6)" : "#4B5E7A",
+                  cursor:"pointer",
+                }}
+              >
+                {showForm ? "▲ Hide" : "📅 Book Appointment"}
+              </button>
+              <div style={{ flex:1, height:1, background:borderC }} />
+            </div>
+
             {showForm && (
-              <>
-                <hr className={`my-6 ${dark ? "border-gray-600" : "border-gray-200"}`} />
+              <div className="msg-in">
+                <div style={{ marginBottom:16 }}>
+                  <h3 style={{ fontSize:15, fontWeight:800, color: dark?"white":"#0B1D35" }}>📅 Appointment</h3>
+                  <p style={{ fontSize:12, color:mutedC, marginTop:3 }}>Book your consultation slot</p>
+                </div>
                 <AppointmentForm
                   dark={dark}
-                  formData={formData}
                   closeForm={() => setShowForm(false)}
                   showToast={showToast}
                 />
-              </>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* ══════════════════════════════════
-          MOBILE FORMS FULL-SCREEN PANEL
-      ══════════════════════════════════ */}
-      {showMobilePanel && (
-        <div className="fixed inset-0 z-50 md:hidden flex flex-col">
-          <div
-            className={`flex-1 overflow-y-auto overscroll-contain ${
-              dark ? "bg-gray-900 text-white" : "bg-gray-50"
-            }`}
-          >
-            {/* Header */}
-            <div
-              className={`sticky top-0 z-10 flex items-center justify-between px-5 py-4 shadow-sm ${
-                dark ? "bg-gray-800" : "bg-white"
-              }`}
-            >
-              <h2 className="text-lg font-bold">📝 Patient Registration</h2>
-              <button
-                onClick={() => setShowMobilePanel(false)}
-                className={`p-2 rounded-xl transition ${dark ? "bg-gray-700 hover:bg-gray-600" : "bg-gray-100 hover:bg-gray-200"}`}
-              >
-                <X size={20} />
-              </button>
+      {/* ═══════════════════════════════════
+          MOBILE FULL-SCREEN FORMS PANEL
+      ═══════════════════════════════════ */}
+      {panelOpen && (
+        <div
+          className="panel-up"
+          style={{
+            position:"fixed", inset:0, zIndex:60,
+            background: bg,
+            display:"flex", flexDirection:"column",
+            fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif",
+          }}
+        >
+          {/* Panel header */}
+          <div style={{
+            display:"flex", alignItems:"center", justifyContent:"space-between",
+            padding:"16px 20px",
+            background: cardBg,
+            borderBottom:`1px solid ${borderC}`,
+            flexShrink:0,
+          }}>
+            <h2 style={{ fontSize:16, fontWeight:800, color: dark?"white":"#0B1D35" }}>Patient & Appointment</h2>
+            <button
+              onClick={() => setPanelOpen(false)}
+              style={{
+                width:34, height:34, borderRadius:10,
+                background: dark?"rgba(255,255,255,0.08)":"#F0F5FF",
+                border:"none", cursor:"pointer",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:16, color: dark?"white":"#0B1D35",
+              }}
+            >✕</button>
+          </div>
+
+          {/* Panel body */}
+          <div style={{ flex:1, overflowY:"auto", padding:"20px 16px", display:"flex", flexDirection:"column", gap:24 }}>
+            <div>
+              <h3 style={{ fontSize:14, fontWeight:800, color: dark?"white":"#0B1D35", marginBottom:16 }}>📋 Patient Registration</h3>
+              <PatientForm dark={dark} showToast={showToast} />
             </div>
 
-            {/* Forms */}
-            <div className="p-5 space-y-4">
-              <PatientForm dark={dark} showToast={showToast} />
+            <div style={{ height:1, background:borderC }} />
+
+            <div>
+              <h3 style={{ fontSize:14, fontWeight:800, color: dark?"white":"#0B1D35", marginBottom:16 }}>📅 Book Appointment</h3>
               <AppointmentForm
                 dark={dark}
-                formData={formData}
-                closeForm={() => { setShowForm(false); setShowMobilePanel(false); }}
+                closeForm={() => setPanelOpen(false)}
                 showToast={showToast}
               />
             </div>
           </div>
         </div>
       )}
+
+      {/* ── Inline style for desktop sidebar & forms panel ── */}
+      <style>{`
+        @media (min-width: 768px) {
+          aside[data-sidebar="true"] {
+            position: relative !important;
+            transform: none !important;
+            animation: none !important;
+          }
+          .forms-panel { display: flex !important; }
+          .md-sidebar-spacer { display: none !important; }
+        }
+      `}</style>
     </div>
   );
 }

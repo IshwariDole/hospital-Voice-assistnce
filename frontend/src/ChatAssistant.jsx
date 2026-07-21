@@ -1,115 +1,168 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./ChatAssistant.css";
-import { Send, Mic, MicOff } from "lucide-react";
 
-const ChatAssistant = () => {
-  const [messages, setMessages] = useState([
-    { sender: "bot", text: "Hi 👋 I am your AI Hospital Assistant. How can I help you?" },
+const ts = () =>
+  new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+
+const QUICK = [
+  { icon: "📅", text: "Book appointment"  },
+  { icon: "👨‍⚕️", text: "Find a specialist"  },
+  { icon: "💊", text: "Ask about medicine" },
+];
+
+export default function ChatAssistant() {
+  const [msgs, setMsgs]         = useState([
+    {
+      sender: "bot",
+      text: "Hello! 👋 I'm your MediAssist AI. How can I help you today?",
+      time: ts(),
+      showQuick: true,
+    },
   ]);
-  const [input, setInput] = useState("");
+  const [input, setInput]       = useState("");
   const [listening, setListening] = useState(false);
-  const chatEndRef = useRef(null);
-  const recognitionRef = useRef(null);
+  const [loading, setLoading]   = useState(false);
+  const endRef                  = useRef(null);
+  const recognRef               = useRef(null);
+  const inputRef                = useRef(null);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [msgs, loading]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const newMsg = { sender: "user", text: input };
-    setMessages((prev) => [...prev, newMsg]);
+  const send = (text) => {
+    const msg = (text || input).trim();
+    if (!msg) return;
+
+    setMsgs(p => [...p, { sender: "user", text: msg, time: ts() }]);
+    setInput("");
+    setLoading(true);
 
     setTimeout(() => {
-      setMessages((prev) => [
-        ...prev,
-        { sender: "bot", text: "Sure 😊 Please tell me: your name, department, and preferred time." },
-      ]);
-    }, 700);
-
-    setInput("");
+      setMsgs(p => [...p, {
+        sender: "bot",
+        time: ts(),
+        text: "Got it! Please share: your full name, preferred department, and a convenient time — I'll book it right away. 🏥",
+      }]);
+      setLoading(false);
+    }, 1000);
   };
 
-  const handleSpeech = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+  const toggleMic = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) { alert("Speech recognition not supported."); return; }
 
-    if (!SpeechRecognition) {
-      alert("Speech recognition not supported in this browser.");
-      return;
-    }
+    if (listening) { recognRef.current?.stop(); setListening(false); return; }
 
-    if (listening) {
-      recognitionRef.current?.stop();
-      setListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognitionRef.current = recognition;
-    recognition.lang = "en-IN";
+    const r = new SR();
+    recognRef.current = r;
+    r.lang = "en-IN";
+    r.start();
     setListening(true);
-    recognition.start();
 
-    recognition.onresult = (event) => {
-      setInput(event.results[0][0].transcript);
+    r.onresult = e => {
+      setInput(e.results[0][0].transcript);
       setListening(false);
+      inputRef.current?.focus();
     };
-    recognition.onerror = () => setListening(false);
-    recognition.onend = () => setListening(false);
+    r.onerror = () => setListening(false);
+    r.onend   = () => setListening(false);
   };
 
   return (
-    <div className="ca-wrapper">
+    <div className="ca2-root">
+
       {/* Header */}
-      <div className="ca-header">
-        <span className="ca-robot">🤖</span>
-        <div>
-          <h2>AI Hospital Assistant</h2>
-          <p>Online Now</p>
+      <div className="ca2-header">
+        <div className="ca2-avatar-wrap">
+          <div className="ca2-avatar">🤖</div>
+          <div className="ca2-online-dot" />
+        </div>
+        <div className="ca2-header-text">
+          <div className="ca2-title">MediAssist AI</div>
+          <div className="ca2-status">● Online · Ready to help</div>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="ca-body">
-        {messages.map((msg, index) => (
-          <div key={index} className={`ca-msg ${msg.sender}`}>
-            {msg.sender === "bot" && <span className="ca-bot-icon">🤖</span>}
-            <div className="ca-bubble">{msg.text}</div>
+      <div className="ca2-body">
+        {msgs.map((m, i) => (
+          <div key={i} className={`ca2-row ca2-row--${m.sender} msg-in`}>
+            {m.sender === "bot" && (
+              <div className="ca2-bot-avatar">🤖</div>
+            )}
+            <div className="ca2-col">
+              <div className={`ca2-bubble ca2-bubble--${m.sender}`}>
+                {m.text}
+              </div>
+              <div className="ca2-time">{m.time}</div>
+
+              {/* Quick replies */}
+              {m.showQuick && (
+                <div className="ca2-quick">
+                  {QUICK.map(q => (
+                    <button
+                      key={q.text}
+                      className="ca2-chip"
+                      onClick={() => send(q.text)}
+                    >
+                      <span>{q.icon}</span> {q.text}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         ))}
-        <div ref={chatEndRef} />
+
+        {/* Typing dots */}
+        {loading && (
+          <div className="ca2-row ca2-row--bot msg-in">
+            <div className="ca2-bot-avatar">🤖</div>
+            <div className="ca2-bubble ca2-bubble--bot ca2-typing">
+              <span className="dot" />
+              <span className="dot" />
+              <span className="dot" />
+            </div>
+          </div>
+        )}
+        <div ref={endRef} />
       </div>
 
       {/* Listening bar */}
       {listening && (
-        <div className="ca-listening">
-          <span className="ca-dot" /> Listening...
+        <div className="ca2-listen-bar">
+          <span className="ca2-listen-dot" />
+          Listening… speak now
         </div>
       )}
 
       {/* Input */}
-      <div className="ca-input-area">
-        <input
-          type="text"
-          placeholder="Describe your problem..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        />
-        <button className="ca-send-btn" onClick={handleSend} disabled={!input.trim()}>
-          <Send size={16} />
-        </button>
+      <div className="ca2-input-row">
+        <div className={`ca2-input-wrap${listening ? " ca2-input-wrap--listening" : ""}`}>
+          <input
+            ref={inputRef}
+            className="ca2-input"
+            placeholder="Describe your concern…"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && send()}
+          />
+          <button
+            className={`ca2-mic${listening ? " ca2-mic--on" : ""}`}
+            onClick={toggleMic}
+            title={listening ? "Stop" : "Voice input"}
+          >
+            {listening ? "🔴" : "🎙️"}
+          </button>
+        </div>
         <button
-          className={`ca-mic-btn ${listening ? "listening" : ""}`}
-          onClick={handleSpeech}
-        >
-          {listening ? <MicOff size={16} /> : <Mic size={16} />}
-          {listening && <span className="ca-mic-ring" />}
-        </button>
+          className="ca2-send"
+          onClick={() => send()}
+          disabled={!input.trim()}
+          title="Send"
+        >➤</button>
       </div>
     </div>
   );
-};
-
-export default ChatAssistant;
+}
